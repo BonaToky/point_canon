@@ -64,7 +64,7 @@ namespace JeuDePoints.Services
             return pos.X >= 0 && pos.X < Longueur && pos.Y >= 0 && pos.Y < Largeur;
         }
 
-        public Joueur GetProprietaire(Position pos)
+        public Joueur? GetProprietaire(Position pos)
         {
             if (!EstDansPlateau(pos))
                 return null;
@@ -100,7 +100,7 @@ namespace JeuDePoints.Services
             }
         }
 
-        public Cellule GetCellule(Position pos)
+        public Cellule? GetCellule(Position pos)
         {
             if (!EstDansPlateau(pos))
                 return null;
