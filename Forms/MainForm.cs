@@ -4,7 +4,9 @@ using System.Windows.Forms;
 using JeuDePoints.Models;
 using JeuDePoints.Services;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace JeuDePoints.Forms
 {
@@ -23,8 +25,11 @@ namespace JeuDePoints.Forms
         private Label _labelScoreJ2 = null!;
         private Label _labelModeAction = null!;
         private Button _btnNouvellePartie = null!;
+        private Button _btnSauvegarder = null!;
+        private Button _btnCharger = null!;
         private Button _btnModePlacer = null!;
         private Button _btnModeTirer = null!;
+        private SauvegardeService? _sauvegardeService;
         private Panel _infoPanel = null!;
         private Panel _setupPanel = null!;
         private NumericUpDown _numLongueur = null!;
@@ -138,6 +143,30 @@ namespace JeuDePoints.Forms
             };
             _btnNouvellePartie.Click += BtnNouvellePartie_Click;
 
+            _btnSauvegarder = new Button
+            {
+                Location = new Point(16, 402),
+                Size = new Size(198, 36),
+                Text = "Sauvegarder partie",
+                Font = new Font("Arial", 10),
+                BackColor = Color.FromArgb(70, 110, 140),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            _btnSauvegarder.Click += BtnSauvegarder_Click;
+
+            _btnCharger = new Button
+            {
+                Location = new Point(16, 444),
+                Size = new Size(198, 36),
+                Text = "Charger partie",
+                Font = new Font("Arial", 10),
+                BackColor = Color.FromArgb(120, 90, 70),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            _btnCharger.Click += BtnCharger_Click;
+
             _infoPanel.Controls.Add(_labelTour);
             _infoPanel.Controls.Add(_labelScoreJ1);
             _infoPanel.Controls.Add(_labelScoreJ2);
@@ -145,6 +174,8 @@ namespace JeuDePoints.Forms
             _infoPanel.Controls.Add(_btnModePlacer);
             _infoPanel.Controls.Add(_btnModeTirer);
             _infoPanel.Controls.Add(_btnNouvellePartie);
+            _infoPanel.Controls.Add(_btnSauvegarder);
+            _infoPanel.Controls.Add(_btnCharger);
 
             // Panel du plateau (custom control with intersections)
             _plateauControl = new PlateauControl
@@ -477,6 +508,259 @@ namespace JeuDePoints.Forms
             _tirEnCours = false;
             CreerPlateauGraphique();
             MettreAJourAffichage();
+        }
+
+        private void BtnSauvegarder_Click(object? sender, EventArgs e)
+        {
+            if (_jeu == null)
+            {
+                MessageBox.Show("Aucune partie en cours à sauvegarder.", "Sauvegarde", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!InitialiserSauvegardeService())
+            {
+                return;
+            }
+
+            try
+            {
+                var gagnant = _jeu.VerifierVictoire();
+                bool partieTerminee = gagnant != null || _jeu.EstMatchNul();
+                string nom = $"Partie {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+
+                var sauvegarde = _sauvegardeService!.SauvegarderPartie(
+                    nom: nom,
+                    jeuService: _jeu,
+                    partieTerminee: partieTerminee,
+                    joueurGagnant: gagnant
+                );
+
+                MessageBox.Show($"Partie sauvegardée (ID: {sauvegarde.Id}).", "Sauvegarde", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de la sauvegarde: {ex.Message}", "Sauvegarde", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnCharger_Click(object? sender, EventArgs e)
+        {
+            if (!InitialiserSauvegardeService())
+            {
+                return;
+            }
+
+            try
+            {
+                var sauvegardes = _sauvegardeService!.ListerToutesSauvegardes();
+                if (sauvegardes.Count == 0)
+                {
+                    MessageBox.Show("Aucune sauvegarde disponible.", "Chargement", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var selection = AfficherDialogueSelectionSauvegarde(sauvegardes);
+                if (selection == null)
+                {
+                    return;
+                }
+
+                ChargerSauvegarde(selection);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors du chargement: {ex.Message}", "Chargement", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private bool InitialiserSauvegardeService()
+        {
+            if (_sauvegardeService != null)
+            {
+                return true;
+            }
+
+            try
+            {
+                string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+                if (!File.Exists(appSettingsPath))
+                {
+                    appSettingsPath = Path.Combine(Application.StartupPath, "appsettings.json");
+                }
+
+                if (!File.Exists(appSettingsPath))
+                {
+                    MessageBox.Show("Fichier appsettings.json introuvable. Impossible d'initialiser la sauvegarde.", "Configuration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+
+                string json = File.ReadAllText(appSettingsPath);
+                using var doc = JsonDocument.Parse(json);
+
+                if (!doc.RootElement.TryGetProperty("PostgreSQL", out var pg))
+                {
+                    MessageBox.Show("Section PostgreSQL absente dans appsettings.json.", "Configuration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+
+                string host = pg.GetProperty("Host").GetString() ?? "localhost";
+                int port = pg.GetProperty("Port").GetInt32();
+                string database = pg.GetProperty("Database").GetString() ?? "jeu_de_points_db";
+                string username = pg.GetProperty("Username").GetString() ?? "postgres";
+                string password = pg.GetProperty("Password").GetString() ?? string.Empty;
+
+                string connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};";
+                _sauvegardeService = new SauvegardeService(connectionString);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Impossible d'initialiser la sauvegarde: {ex.Message}", "Configuration", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private SauvegardeJeu? AfficherDialogueSelectionSauvegarde(List<SauvegardeJeu> sauvegardes)
+        {
+            using var dialog = new Form
+            {
+                Text = "Choisir une sauvegarde",
+                Size = new Size(620, 380),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var list = new ListBox
+            {
+                Dock = DockStyle.Top,
+                Height = 280,
+                Font = new Font("Consolas", 10)
+            };
+
+            foreach (var s in sauvegardes)
+            {
+                list.Items.Add($"[{s.Id}] {s.DateSauvegarde:dd/MM/yyyy HH:mm} - {s.Nom}");
+            }
+
+            if (list.Items.Count > 0)
+            {
+                list.SelectedIndex = 0;
+            }
+
+            var btnOk = new Button
+            {
+                Text = "Charger",
+                DialogResult = DialogResult.OK,
+                Width = 120,
+                Height = 32,
+                Left = 360,
+                Top = 295
+            };
+
+            var btnAnnuler = new Button
+            {
+                Text = "Annuler",
+                DialogResult = DialogResult.Cancel,
+                Width = 120,
+                Height = 32,
+                Left = 490,
+                Top = 295
+            };
+
+            dialog.Controls.Add(list);
+            dialog.Controls.Add(btnOk);
+            dialog.Controls.Add(btnAnnuler);
+            dialog.AcceptButton = btnOk;
+            dialog.CancelButton = btnAnnuler;
+
+            if (dialog.ShowDialog(this) != DialogResult.OK || list.SelectedIndex < 0)
+            {
+                return null;
+            }
+
+            return sauvegardes[list.SelectedIndex];
+        }
+
+        private void ChargerSauvegarde(SauvegardeJeu sauvegarde)
+        {
+            _jeu = new JeuService(
+                sauvegarde.PlateauLongueur,
+                sauvegarde.PlateauLargeur,
+                sauvegarde.Joueur1Nom,
+                sauvegarde.Joueur2Nom);
+
+            var joueurs = _jeu.GetJoueurs();
+            var joueur1 = joueurs[0];
+            var joueur2 = joueurs[1];
+
+            using var doc = JsonDocument.Parse(sauvegarde.EtatJeu);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("plateau", out var plateauJson)
+                && plateauJson.TryGetProperty("cellules", out var cellules))
+            {
+                for (int x = 0; x < cellules.GetArrayLength(); x++)
+                {
+                    var row = cellules[x];
+                    for (int y = 0; y < row.GetArrayLength(); y++)
+                    {
+                        var cellData = row[y];
+                        var cellule = _jeu.Plateau.GetCellule(new Position(x, y));
+                        if (cellule == null)
+                        {
+                            continue;
+                        }
+
+                        bool estVide = cellData.GetProperty("estVide").GetBoolean();
+                        cellule.Proprietaire = estVide
+                            ? null
+                            : (cellData.GetProperty("proprietaireId").GetInt32() == joueur1.Id ? joueur1 : joueur2);
+                        cellule.EstProtegee = cellData.GetProperty("estProtegee").GetBoolean();
+                    }
+                }
+            }
+
+            _jeu.GetLignesTracees().Clear();
+            if (root.TryGetProperty("lignesTracees", out var lignesJson))
+            {
+                foreach (var ligneJson in lignesJson.EnumerateArray())
+                {
+                    int joueurId = ligneJson.GetProperty("joueurId").GetInt32();
+                    string direction = ligneJson.GetProperty("direction").GetString() ?? "Inconnue";
+                    var positions = new List<Position>();
+
+                    foreach (var posJson in ligneJson.GetProperty("positions").EnumerateArray())
+                    {
+                        positions.Add(new Position(
+                            posJson.GetProperty("x").GetInt32(),
+                            posJson.GetProperty("y").GetInt32()));
+                    }
+
+                    var joueur = joueurId == joueur1.Id ? joueur1 : joueur2;
+                    _jeu.GetLignesTracees().Add(new LigneTracee(joueur, positions, direction));
+                }
+            }
+
+            joueur1.Score = sauvegarde.Joueur1Score;
+            joueur2.Score = sauvegarde.Joueur2Score;
+
+            if (_jeu.JoueurActuel.Id != sauvegarde.JoueurActuelId)
+            {
+                _jeu.PasserTour();
+            }
+
+            _modeAction = ModeAction.PlacerPoint;
+            _tirEnCours = false;
+            _setupPanel.Visible = false;
+            _infoPanel.Visible = true;
+            _plateauControl.Visible = true;
+            CreerPlateauGraphique();
+            MettreAJourAffichage();
+
+            MessageBox.Show($"Sauvegarde chargée: {sauvegarde.Nom}", "Chargement", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
 }

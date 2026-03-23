@@ -249,7 +249,7 @@ namespace JeuDePoints.Services
             ChangerTour();
         }
 
-        public Joueur VerifierVictoire()
+        public Joueur? VerifierVictoire()
         {
             // Si un joueur a au moins une ligne tracée, il a gagné
             if (_lignesTracees.Any())
