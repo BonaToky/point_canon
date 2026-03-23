@@ -150,19 +150,64 @@ namespace JeuDePoints.Services
                 && b.Y <= Math.Max(a.Y, c.Y) && b.Y >= Math.Min(a.Y, c.Y);
         }
 
-        public bool TirerCanon(Position position)
+        private int CalculerPorteeCanon(int puissance)
         {
-            var tir = TirerCanonAvecResultat(position);
+            int puissanceNormalisee = Math.Clamp(puissance, 1, 9);
+            int distanceMax = Math.Max(0, _plateau.Longueur - 1);
+            return (int)Math.Round(((double)(puissanceNormalisee - 1) / 8.0) * distanceMax, MidpointRounding.AwayFromZero);
+        }
+
+        public Position CalculerDestinationCanonVers(Position positionVisee, int puissance = 9)
+        {
+            int tireurId = JoueurActuel.Id;
+            int ligne = Math.Clamp(positionVisee.Y, 0, _plateau.Largeur - 1);
+            int portee = CalculerPorteeCanon(puissance);
+
+            int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
+            int limiteIncluse = tireurId == 1
+                ? Math.Min(_plateau.Longueur - 1, startX + portee)
+                : Math.Max(0, startX - portee);
+
+            int xDestination = tireurId == 1
+                ? Math.Clamp(positionVisee.X, startX, limiteIncluse)
+                : Math.Clamp(positionVisee.X, limiteIncluse, startX);
+
+            return new Position(xDestination, ligne);
+        }
+
+        public Position CalculerDestinationCanonSurLigne(int ligne, int puissance = 9)
+        {
+            int tireurId = JoueurActuel.Id;
+            int ligneValide = Math.Clamp(ligne, 0, _plateau.Largeur - 1);
+            int portee = CalculerPorteeCanon(puissance);
+
+            int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
+            int limiteIncluse = tireurId == 1
+                ? Math.Min(_plateau.Longueur - 1, startX + portee)
+                : Math.Max(0, startX - portee);
+
+            return new Position(limiteIncluse, ligneValide);
+        }
+
+        public bool TirerCanon(Position position, int puissance = 9)
+        {
+            var tir = TirerCanonAvecResultat(position, puissance);
             if (tir == null)
                 return false;
 
             return FinaliserTirCanon(tir);
         }
 
-        public TirCanonResultat? TirerCanonAvecResultat(Position position)
+        public TirCanonResultat? TirerCanonAvecResultat(Position position, int puissance = 9)
         {
             int tireurId = JoueurActuel.Id;
             if (!_plateau.EstDansPlateau(position))
+                return null;
+
+            int portee = CalculerPorteeCanon(puissance);
+            int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
+            int distance = Math.Abs(position.X - startX);
+            if (distance > portee)
                 return null;
 
             var cellule = _plateau.GetCellule(position);
@@ -203,24 +248,28 @@ namespace JeuDePoints.Services
             return true;
         }
 
-        public bool TirerCanonSurLigne(int ligne)
+        public bool TirerCanonSurLigne(int ligne, int puissance = 9)
         {
-            var tir = TirerCanonSurLigneAvecResultat(ligne);
+            var tir = TirerCanonSurLigneAvecResultat(ligne, puissance);
             if (tir == null)
                 return false;
 
             return FinaliserTirCanon(tir);
         }
 
-        public TirCanonResultat? TirerCanonSurLigneAvecResultat(int ligne)
+        public TirCanonResultat? TirerCanonSurLigneAvecResultat(int ligne, int puissance = 9)
         {
             if (ligne < 0 || ligne >= _plateau.Largeur)
                 return null;
 
             int tireurId = JoueurActuel.Id;
+            int portee = CalculerPorteeCanon(puissance);
 
             int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
-            int endX = tireurId == 1 ? _plateau.Longueur : -1;
+            int limiteIncluse = tireurId == 1
+                ? Math.Min(_plateau.Longueur - 1, startX + portee)
+                : Math.Max(0, startX - portee);
+            int endX = tireurId == 1 ? limiteIncluse + 1 : limiteIncluse - 1;
             int step = tireurId == 1 ? 1 : -1;
 
             for (int x = startX; x != endX; x += step)

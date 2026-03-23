@@ -29,6 +29,8 @@ namespace JeuDePoints.Forms
         private Button _btnCharger = null!;
         private Button _btnModePlacer = null!;
         private Button _btnModeTirer = null!;
+        private Label _labelPuissance = null!;
+        private NumericUpDown _numPuissanceCanon = null!;
         private SauvegardeService? _sauvegardeService;
         private Panel _infoPanel = null!;
         private Panel _setupPanel = null!;
@@ -130,10 +132,31 @@ namespace JeuDePoints.Forms
                 MettreAJourBoutonsAction();
             };
 
+            _labelPuissance = new Label
+            {
+                Location = new Point(16, 354),
+                Size = new Size(198, 22),
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                ForeColor = Color.White,
+                Text = "Puissance canon:"
+            };
+
+            _numPuissanceCanon = new NumericUpDown
+            {
+                Location = new Point(16, 378),
+                Size = new Size(198, 28),
+                Minimum = 1,
+                Maximum = 9,
+                Value = 9,
+                Font = new Font("Arial", 11, FontStyle.Bold),
+                BackColor = Color.FromArgb(230, 230, 230),
+                ForeColor = Color.Black
+            };
+
             // Bouton nouvelle partie
             _btnNouvellePartie = new Button
             {
-                Location = new Point(16, 354),
+                Location = new Point(16, 416),
                 Size = new Size(198, 40),
                 Text = "Nouvelle Partie",
                 Font = new Font("Arial", 10),
@@ -145,7 +168,7 @@ namespace JeuDePoints.Forms
 
             _btnSauvegarder = new Button
             {
-                Location = new Point(16, 402),
+                Location = new Point(16, 464),
                 Size = new Size(198, 36),
                 Text = "Sauvegarder partie",
                 Font = new Font("Arial", 10),
@@ -157,7 +180,7 @@ namespace JeuDePoints.Forms
 
             _btnCharger = new Button
             {
-                Location = new Point(16, 444),
+                Location = new Point(16, 506),
                 Size = new Size(198, 36),
                 Text = "Charger partie",
                 Font = new Font("Arial", 10),
@@ -173,6 +196,8 @@ namespace JeuDePoints.Forms
             _infoPanel.Controls.Add(_labelModeAction);
             _infoPanel.Controls.Add(_btnModePlacer);
             _infoPanel.Controls.Add(_btnModeTirer);
+            _infoPanel.Controls.Add(_labelPuissance);
+            _infoPanel.Controls.Add(_numPuissanceCanon);
             _infoPanel.Controls.Add(_btnNouvellePartie);
             _infoPanel.Controls.Add(_btnSauvegarder);
             _infoPanel.Controls.Add(_btnCharger);
@@ -331,13 +356,25 @@ namespace JeuDePoints.Forms
 
             if (_modeAction == ModeAction.TirerCanon)
             {
-                var resultatTir = _jeu.TirerCanonAvecResultat(position);
+                int puissance = ObtenirPuissanceCanon();
+                int tireurId = _jeu.JoueurActuel.Id;
+                var resultatTir = _jeu.TirerCanonAvecResultat(position, puissance);
                 if (resultatTir == null)
                 {
-                    _jeu.PasserTour();
-                    _modeAction = ModeAction.PlacerPoint;
-                    MettreAJourAffichage();
-                    MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Position destinationRatee = _jeu.CalculerDestinationCanonVers(position, puissance);
+                    _tirEnCours = true;
+                    _plateauControl.PlayShotAnimation(tireurId, destinationRatee, () =>
+                    {
+                        if (_jeu != null)
+                        {
+                            _jeu.PasserTour();
+                        }
+
+                        _modeAction = ModeAction.PlacerPoint;
+                        _tirEnCours = false;
+                        MettreAJourAffichage();
+                        MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    });
                     return;
                 }
 
@@ -417,13 +454,25 @@ namespace JeuDePoints.Forms
             {
                 _modeAction = ModeAction.TirerCanon;
                 int ligne = _plateauControl.GetActiveCannonRow();
-                var resultatTir = _jeu.TirerCanonSurLigneAvecResultat(ligne);
+                int puissance = ObtenirPuissanceCanon();
+                int tireurId = _jeu.JoueurActuel.Id;
+                var resultatTir = _jeu.TirerCanonSurLigneAvecResultat(ligne, puissance);
                 if (resultatTir == null)
                 {
-                    _jeu.PasserTour();
-                    _modeAction = ModeAction.PlacerPoint;
-                    MettreAJourAffichage();
-                    MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Position destinationRatee = _jeu.CalculerDestinationCanonSurLigne(ligne, puissance);
+                    _tirEnCours = true;
+                    _plateauControl.PlayShotAnimation(tireurId, destinationRatee, () =>
+                    {
+                        if (_jeu != null)
+                        {
+                            _jeu.PasserTour();
+                        }
+
+                        _modeAction = ModeAction.PlacerPoint;
+                        _tirEnCours = false;
+                        MettreAJourAffichage();
+                        MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    });
                     e.Handled = true;
                     e.SuppressKeyPress = true;
                     return;
@@ -475,6 +524,11 @@ namespace JeuDePoints.Forms
             _labelModeAction.Text = placerActif
                 ? "Action: Placer un point"
                 : "Action: Tirer au canon";
+        }
+
+        private int ObtenirPuissanceCanon()
+        {
+            return (int)_numPuissanceCanon.Value;
         }
 
         private void BtnNouvellePartie_Click(object? sender, EventArgs e)
