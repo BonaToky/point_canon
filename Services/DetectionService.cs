@@ -87,15 +87,10 @@ namespace JeuDePoints.Services
                 i++;
             }
 
-            // Si on a au moins 5 points consécutifs, on peut avoir plusieurs lignes
-            if (pointsAlignes.Count >= 5)
+            // Règle "exactement 5": une chaîne de 6+ ne compte pas comme nouvel alignement.
+            if (pointsAlignes.Count == 5)
             {
-                // Extraire toutes les lignes de 5 points consécutifs
-                for (int index = 0; index <= pointsAlignes.Count - 5; index++)
-                {
-                    var ligne = pointsAlignes.GetRange(index, 5);
-                    lignes.Add(new LigneTracee(joueur, ligne, nomDirection));
-                }
+                lignes.Add(new LigneTracee(joueur, pointsAlignes, nomDirection));
             }
 
             return lignes;
