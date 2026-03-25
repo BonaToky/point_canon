@@ -64,6 +64,7 @@ namespace JeuDePoints.Services
             // Vérifier les lignes créées
             var nouvellesLignes = _detection.VerifierNouvellesLignes(position, JoueurActuel);
             nouvellesLignes = nouvellesLignes
+                .Where(ligne => !_lignesTracees.Any(existante => LignesIdentiques(existante, ligne)))
                 .Where(ligne => !ToucheOuCroiseLigneAdverse(ligne))
                 .ToList();
 
@@ -150,11 +151,34 @@ namespace JeuDePoints.Services
                 && b.Y <= Math.Max(a.Y, c.Y) && b.Y >= Math.Min(a.Y, c.Y);
         }
 
-        private int CalculerPorteeCanon(int puissance)
+        private static bool LignesIdentiques(LigneTracee a, LigneTracee b)
+        {
+            if (a.Joueur.Id != b.Joueur.Id || a.Positions.Count != b.Positions.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < a.Positions.Count; i++)
+            {
+                if (a.Positions[i].X != b.Positions[i].X || a.Positions[i].Y != b.Positions[i].Y)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private double CalculerPorteeCanonReelle(int puissance)
         {
             int puissanceNormalisee = Math.Clamp(puissance, 1, 9);
             int distanceMax = Math.Max(0, _plateau.Longueur - 1);
-            return (int)Math.Round(((double)(puissanceNormalisee - 1) / 8.0) * distanceMax, MidpointRounding.AwayFromZero);
+            return ((double)(puissanceNormalisee - 1) / 8.0) * distanceMax;
+        }
+
+        private int CalculerPorteeCanon(int puissance)
+        {
+            return (int)Math.Floor(CalculerPorteeCanonReelle(puissance));
         }
 
         public Position CalculerDestinationCanonVers(Position positionVisee, int puissance = 9)
@@ -204,10 +228,10 @@ namespace JeuDePoints.Services
             if (!_plateau.EstDansPlateau(position))
                 return null;
 
-            int portee = CalculerPorteeCanon(puissance);
+            double porteeReelle = CalculerPorteeCanonReelle(puissance);
             int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
             int distance = Math.Abs(position.X - startX);
-            if (distance > portee)
+            if (distance > porteeReelle)
                 return null;
 
             var cellule = _plateau.GetCellule(position);
@@ -269,23 +293,17 @@ namespace JeuDePoints.Services
             int limiteIncluse = tireurId == 1
                 ? Math.Min(_plateau.Longueur - 1, startX + portee)
                 : Math.Max(0, startX - portee);
-            int endX = tireurId == 1 ? limiteIncluse + 1 : limiteIncluse - 1;
-            int step = tireurId == 1 ? 1 : -1;
 
-            for (int x = startX; x != endX; x += step)
-            {
-                var pos = new Position(x, ligne);
-                var cellule = _plateau.GetCellule(pos);
-                if (cellule == null || cellule.EstVide)
-                    continue;
+            // Logique mortier: impact uniquement sur la case de portée, sans collision intermédiaire.
+            var impact = new Position(limiteIncluse, ligne);
+            var cellule = _plateau.GetCellule(impact);
+            if (cellule == null || cellule.EstVide)
+                return null;
 
-                if (cellule.Proprietaire == JoueurActuel)
-                    continue;
+            if (cellule.Proprietaire == JoueurActuel)
+                return null;
 
-                return new TirCanonResultat(tireurId, pos);
-            }
-
-            return null;
+            return new TirCanonResultat(tireurId, impact);
         }
 
         private void ChangerTour()
