@@ -24,6 +24,7 @@ namespace JeuDePoints.Services
         private List<Joueur> _joueurs;
         private int _tourActuel;
         private List<LigneTracee> _lignesTracees;
+        private Dictionary<int, HashSet<Position>> _casesPerduesParJoueur;
 
         public JeuService(int longueur, int largeur, string nomJoueur1, string nomJoueur2)
         {
@@ -35,6 +36,12 @@ namespace JeuDePoints.Services
             {
                 new Joueur(1, nomJoueur1, 'R', System.Drawing.Color.Red),
                 new Joueur(2, nomJoueur2, 'B', System.Drawing.Color.Blue)
+            };
+
+            _casesPerduesParJoueur = new Dictionary<int, HashSet<Position>>
+            {
+                { _joueurs[0].Id, new HashSet<Position>() },
+                { _joueurs[1].Id, new HashSet<Position>() }
             };
             
             _tourActuel = 0;
@@ -235,10 +242,14 @@ namespace JeuDePoints.Services
                 return null;
 
             var cellule = _plateau.GetCellule(position);
-            if (cellule == null || cellule.EstVide)
+            if (cellule == null)
                 return null;
 
             if (cellule.Proprietaire == JoueurActuel)
+                return null;
+
+            bool caseRecuperable = EstCaseRecuperablePourJoueur(JoueurActuel.Id, position);
+            if (cellule.EstVide && !caseRecuperable)
                 return null;
 
             return new TirCanonResultat(tireurId, position);
@@ -249,8 +260,43 @@ namespace JeuDePoints.Services
             if (tir.TireurId != JoueurActuel.Id)
                 return false;
 
-            if (!_plateau.TirerSurPointAdverse(tir.Cible, JoueurActuel))
+            var celluleCible = _plateau.GetCellule(tir.Cible);
+            if (celluleCible == null)
                 return false;
+
+            if (celluleCible.Proprietaire == JoueurActuel)
+                return false;
+
+            bool caseRecuperable = EstCaseRecuperablePourJoueur(JoueurActuel.Id, tir.Cible);
+            var proprietaireAvant = celluleCible.Proprietaire;
+
+            if (proprietaireAvant == null)
+            {
+                if (!caseRecuperable)
+                    return false;
+
+                celluleCible.Proprietaire = JoueurActuel;
+            }
+            else
+            {
+                if (caseRecuperable)
+                {
+                    // Reprise de case: un point adverse sur la case perdue devient le point du tireur.
+                    celluleCible.Proprietaire = JoueurActuel;
+                }
+                else
+                {
+                    // Tir standard: suppression du point adverse et mémorisation de la case perdue.
+                    celluleCible.Proprietaire = null;
+                    MemoriserCasePerdue(proprietaireAvant.Id, tir.Cible);
+                }
+            }
+
+            celluleCible.EstProtegee = false;
+            if (caseRecuperable)
+            {
+                _casesPerduesParJoueur[JoueurActuel.Id].Remove(tir.Cible);
+            }
 
             var lignesSupprimees = _lignesTracees
                 .Where(l => l.Positions.Any(p => p.X == tir.Cible.X && p.Y == tir.Cible.Y))
@@ -297,13 +343,38 @@ namespace JeuDePoints.Services
             // Logique mortier: impact uniquement sur la case de portée, sans collision intermédiaire.
             var impact = new Position(limiteIncluse, ligne);
             var cellule = _plateau.GetCellule(impact);
-            if (cellule == null || cellule.EstVide)
+            if (cellule == null)
                 return null;
 
             if (cellule.Proprietaire == JoueurActuel)
                 return null;
 
+            bool caseRecuperable = EstCaseRecuperablePourJoueur(JoueurActuel.Id, impact);
+            if (cellule.EstVide && !caseRecuperable)
+                return null;
+
             return new TirCanonResultat(tireurId, impact);
+        }
+
+        private bool EstCaseRecuperablePourJoueur(int joueurId, Position position)
+        {
+            if (!_casesPerduesParJoueur.TryGetValue(joueurId, out var casesPerdues))
+            {
+                return false;
+            }
+
+            return casesPerdues.Contains(position);
+        }
+
+        private void MemoriserCasePerdue(int joueurId, Position position)
+        {
+            if (!_casesPerduesParJoueur.TryGetValue(joueurId, out var casesPerdues))
+            {
+                casesPerdues = new HashSet<Position>();
+                _casesPerduesParJoueur[joueurId] = casesPerdues;
+            }
+
+            casesPerdues.Add(new Position(position.X, position.Y));
         }
 
         private void ChangerTour()
@@ -353,6 +424,10 @@ namespace JeuDePoints.Services
         {
             _plateau.Reinitialiser();
             _lignesTracees.Clear();
+            foreach (var casesPerdues in _casesPerduesParJoueur.Values)
+            {
+                casesPerdues.Clear();
+            }
             _tourActuel = 0;
         }
     }
