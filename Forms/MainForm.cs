@@ -952,6 +952,36 @@ namespace JeuDePoints.Forms
                 }
             }
 
+            var casesPerdues = new Dictionary<int, List<Position>>();
+            if (root.TryGetProperty("casesPerduesParJoueur", out var casesPerduesJson)
+                && casesPerduesJson.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in casesPerduesJson.EnumerateObject())
+                {
+                    if (!int.TryParse(prop.Name, out int joueurId))
+                    {
+                        continue;
+                    }
+
+                    var positions = new List<Position>();
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var posJson in prop.Value.EnumerateArray())
+                        {
+                            if (posJson.TryGetProperty("x", out var xEl)
+                                && posJson.TryGetProperty("y", out var yEl))
+                            {
+                                positions.Add(new Position(xEl.GetInt32(), yEl.GetInt32()));
+                            }
+                        }
+                    }
+
+                    casesPerdues[joueurId] = positions;
+                }
+            }
+
+            _jeu.DefinirCasesPerduesParJoueur(casesPerdues);
+
             joueur1.Score = sauvegarde.Joueur1Score;
             joueur2.Score = sauvegarde.Joueur2Score;
 

@@ -430,6 +430,36 @@ namespace JeuDePoints.Services
             return _lignesTracees;
         }
 
+        public Dictionary<int, List<Position>> GetCasesPerduesParJoueur()
+        {
+            return _casesPerduesParJoueur.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.Select(p => new Position(p.X, p.Y)).ToList());
+        }
+
+        public void DefinirCasesPerduesParJoueur(Dictionary<int, List<Position>> donnees)
+        {
+            _casesPerduesParJoueur.Clear();
+
+            foreach (var joueur in _joueurs)
+            {
+                _casesPerduesParJoueur[joueur.Id] = new HashSet<Position>();
+            }
+
+            foreach (var entree in donnees)
+            {
+                if (!_casesPerduesParJoueur.ContainsKey(entree.Key))
+                {
+                    continue;
+                }
+
+                foreach (var position in entree.Value)
+                {
+                    _casesPerduesParJoueur[entree.Key].Add(new Position(position.X, position.Y));
+                }
+            }
+        }
+
         public void Reinitialiser()
         {
             _plateau.Reinitialiser();
