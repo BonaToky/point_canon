@@ -30,6 +30,7 @@ namespace JeuDePoints.Forms
         private Button _btnModePlacer = null!;
         private Button _btnModeTirer = null!;
         private Label _labelPuissance = null!;
+        private Label _labelPorteeChoisie = null!;
         private NumericUpDown _numPuissanceCanon = null!;
         private SauvegardeService? _sauvegardeService;
         private Panel _infoPanel = null!;
@@ -138,7 +139,7 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 22),
                 Font = new Font("Arial", 10, FontStyle.Bold),
                 ForeColor = Color.White,
-                Text = "Puissance canon:"
+                Text = "Portée canon (Ctrl+1..9):"
             };
 
             _numPuissanceCanon = new NumericUpDown
@@ -152,11 +153,23 @@ namespace JeuDePoints.Forms
                 BackColor = Color.FromArgb(230, 230, 230),
                 ForeColor = Color.Black
             };
+            _numPuissanceCanon.Visible = false;
+            _numPuissanceCanon.TabStop = false;
+            _numPuissanceCanon.ValueChanged += (s, e) => MettreAJourLabelPorteeChoisie();
+
+            _labelPorteeChoisie = new Label
+            {
+                Location = new Point(16, 380),
+                Size = new Size(198, 22),
+                Font = new Font("Arial", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(240, 220, 160),
+                Text = "Portée choisie: 9"
+            };
 
             // Bouton nouvelle partie
             _btnNouvellePartie = new Button
             {
-                Location = new Point(16, 416),
+                Location = new Point(16, 412),
                 Size = new Size(198, 40),
                 Text = "Nouvelle Partie",
                 Font = new Font("Arial", 10),
@@ -168,7 +181,7 @@ namespace JeuDePoints.Forms
 
             _btnSauvegarder = new Button
             {
-                Location = new Point(16, 464),
+                Location = new Point(16, 460),
                 Size = new Size(198, 36),
                 Text = "Sauvegarder partie",
                 Font = new Font("Arial", 10),
@@ -180,7 +193,7 @@ namespace JeuDePoints.Forms
 
             _btnCharger = new Button
             {
-                Location = new Point(16, 506),
+                Location = new Point(16, 502),
                 Size = new Size(198, 36),
                 Text = "Charger partie",
                 Font = new Font("Arial", 10),
@@ -197,10 +210,12 @@ namespace JeuDePoints.Forms
             _infoPanel.Controls.Add(_btnModePlacer);
             _infoPanel.Controls.Add(_btnModeTirer);
             _infoPanel.Controls.Add(_labelPuissance);
-            _infoPanel.Controls.Add(_numPuissanceCanon);
+            _infoPanel.Controls.Add(_labelPorteeChoisie);
             _infoPanel.Controls.Add(_btnNouvellePartie);
             _infoPanel.Controls.Add(_btnSauvegarder);
             _infoPanel.Controls.Add(_btnCharger);
+
+            MettreAJourLabelPorteeChoisie();
 
             // Panel du plateau (custom control with intersections)
             _plateauControl = new PlateauControl
@@ -430,6 +445,14 @@ namespace JeuDePoints.Forms
                 return;
             }
 
+            if (e.Control && TryGetPuissanceFromKey(e.KeyCode, out int puissanceSelectionnee))
+            {
+                DefinirPuissanceCanon(puissanceSelectionnee);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
             if (e.KeyCode == Keys.W)
             {
                 _modeAction = ModeAction.TirerCanon;
@@ -529,6 +552,46 @@ namespace JeuDePoints.Forms
         private int ObtenirPuissanceCanon()
         {
             return (int)_numPuissanceCanon.Value;
+        }
+
+        private void DefinirPuissanceCanon(int puissance)
+        {
+            if (puissance < _numPuissanceCanon.Minimum || puissance > _numPuissanceCanon.Maximum)
+            {
+                return;
+            }
+
+            _numPuissanceCanon.Value = puissance;
+            MettreAJourLabelPorteeChoisie();
+        }
+
+        private void MettreAJourLabelPorteeChoisie()
+        {
+            if (_labelPorteeChoisie == null)
+            {
+                return;
+            }
+
+            _labelPorteeChoisie.Text = $"Portée choisie: {ObtenirPuissanceCanon()}";
+        }
+
+        private static bool TryGetPuissanceFromKey(Keys key, out int puissance)
+        {
+            puissance = 0;
+
+            if (key >= Keys.D1 && key <= Keys.D9)
+            {
+                puissance = key - Keys.D0;
+                return true;
+            }
+
+            if (key >= Keys.NumPad1 && key <= Keys.NumPad9)
+            {
+                puissance = key - Keys.NumPad0;
+                return true;
+            }
+
+            return false;
         }
 
         private void BtnNouvellePartie_Click(object? sender, EventArgs e)
