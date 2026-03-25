@@ -245,6 +245,10 @@ namespace JeuDePoints.Services
             if (cellule == null)
                 return null;
 
+            // Les points appartenant a une ligne alignee/protegee sont intouchables.
+            if (cellule.EstProtegee)
+                return null;
+
             if (cellule.Proprietaire == JoueurActuel)
                 return null;
 
@@ -262,6 +266,9 @@ namespace JeuDePoints.Services
 
             var celluleCible = _plateau.GetCellule(tir.Cible);
             if (celluleCible == null)
+                return false;
+
+            if (celluleCible.EstProtegee)
                 return false;
 
             if (celluleCible.Proprietaire == JoueurActuel)
@@ -344,6 +351,9 @@ namespace JeuDePoints.Services
             var impact = new Position(limiteIncluse, ligne);
             var cellule = _plateau.GetCellule(impact);
             if (cellule == null)
+                return null;
+
+            if (cellule.EstProtegee)
                 return null;
 
             if (cellule.Proprietaire == JoueurActuel)

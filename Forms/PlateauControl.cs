@@ -41,7 +41,7 @@ namespace JeuDePoints.Forms
             _shotTimer = new System.Windows.Forms.Timer();
             _shotTimer.Interval = 1000 / 30;
             _shotTimer.Tick += ShotTimer_Tick;
-            BackColor = Color.FromArgb(230, 220, 200);
+            BackColor = Color.FromArgb(235, 247, 255);
         }
 
         public void SetJeu(JeuService jeu)
@@ -285,12 +285,12 @@ namespace JeuDePoints.Forms
                 return;
             }
 
-            using (var brush = new SolidBrush(Color.FromArgb(246, 223, 183)))
+            using (var brush = new SolidBrush(Color.White))
             {
                 g.FillRectangle(brush, startX, startY, boardWidth, boardHeight);
             }
 
-            using (var pen = new Pen(Color.FromArgb(110, 85, 55), 1.6f))
+            using (var pen = new Pen(Color.FromArgb(150, 205, 240), 1.6f))
             {
                 for (int x = 0; x < cols; x++)
                 {
@@ -346,7 +346,7 @@ namespace JeuDePoints.Forms
 
                     if (_tempHighlights.Any(p => p.X == x && p.Y == y))
                     {
-                        using (var b = new SolidBrush(Color.FromArgb(180, 255, 240, 120)))
+                        using (var b = new SolidBrush(Color.FromArgb(180, 186, 225, 248)))
                         {
                             g.FillEllipse(b, cx - radius - 4, cy - radius - 4, (radius + 4) * 2, (radius + 4) * 2);
                         }
@@ -365,7 +365,7 @@ namespace JeuDePoints.Forms
                     }
                     else
                     {
-                        using (var b = new SolidBrush(Color.FromArgb(130, 95, 65)))
+                        using (var b = new SolidBrush(Color.FromArgb(120, 150, 180)))
                         {
                             g.FillEllipse(b, cx - 2, cy - 2, 4, 4);
                         }
@@ -373,7 +373,7 @@ namespace JeuDePoints.Forms
 
                     if (cellule != null && cellule.EstProtegee)
                     {
-                        using (var p = new Pen(Color.Gold, 3))
+                        using (var p = new Pen(Color.DeepSkyBlue, 3))
                         {
                             g.DrawEllipse(p, cx - radius - 2, cy - radius - 2, (radius + 2) * 2, (radius + 2) * 2);
                         }

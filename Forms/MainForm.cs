@@ -21,6 +21,7 @@ namespace JeuDePoints.Forms
         private JeuService? _jeu;
         private PlateauControl _plateauControl = null!;
         private Label _labelTour = null!;
+        private Label _labelMatricule = null!;
         private Label _labelScoreJ1 = null!;
         private Label _labelScoreJ2 = null!;
         private Label _labelModeAction = null!;
@@ -55,7 +56,7 @@ namespace JeuDePoints.Forms
             this.Text = "Jeu de Points - Alignez 5 !";
             this.Size = new Size(800, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = Color.FromArgb(240, 240, 240);
+            this.BackColor = Color.White;
             this.KeyPreview = true;
             this.KeyDown += MainForm_KeyDown;
 
@@ -64,17 +65,26 @@ namespace JeuDePoints.Forms
             {
                 Dock = DockStyle.Left,
                 Width = 230,
-                BackColor = Color.FromArgb(50, 50, 50)
+                BackColor = Color.FromArgb(201, 236, 255)
             };
 
             // Label du tour
             _labelTour = new Label
             {
                 Location = new Point(16, 20),
-                Size = new Size(198, 90),
+                Size = new Size(198, 54),
                 Font = new Font("Arial", 13, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Tour du Joueur Rouge (R)"
+            };
+
+            _labelMatricule = new Label
+            {
+                Location = new Point(16, 76),
+                Size = new Size(198, 38),
+                Font = new Font("Arial", 20, FontStyle.Bold),
+                ForeColor = Color.FromArgb(20, 120, 190),
+                Text = "ETU3321"
             };
 
             // Labels des scores
@@ -83,7 +93,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 140),
                 Size = new Size(198, 30),
                 Font = new Font("Arial", 12),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Rouge: 0"
             };
 
@@ -92,7 +102,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 174),
                 Size = new Size(198, 30),
                 Font = new Font("Arial", 12),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Bleu: 0"
             };
 
@@ -101,7 +111,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 214),
                 Size = new Size(198, 44),
                 Font = new Font("Arial", 10, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Action: Placer"
             };
 
@@ -111,8 +121,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 34),
                 Text = "Placer un point",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(95, 95, 95),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(232, 247, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnModePlacer.Click += (s, e) =>
@@ -127,8 +137,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 34),
                 Text = "Tirer au canon",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(95, 95, 95),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(232, 247, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnModeTirer.Click += (s, e) =>
@@ -142,7 +152,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 354),
                 Size = new Size(198, 22),
                 Font = new Font("Arial", 10, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Portée canon (Ctrl+1..9):"
             };
 
@@ -166,7 +176,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 380),
                 Size = new Size(198, 22),
                 Font = new Font("Arial", 9, FontStyle.Bold),
-                ForeColor = Color.FromArgb(240, 220, 160),
+                ForeColor = Color.FromArgb(20, 120, 190),
                 Text = "Portée choisie: 9"
             };
 
@@ -177,8 +187,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 40),
                 Text = "Nouvelle Partie",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(100, 100, 100),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(222, 243, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnNouvellePartie.Click += BtnNouvellePartie_Click;
@@ -189,8 +199,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 36),
                 Text = "Sauvegarder partie",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(70, 110, 140),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(209, 237, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnSauvegarder.Click += BtnSauvegarder_Click;
@@ -201,8 +211,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 36),
                 Text = "Charger partie",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(120, 90, 70),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(198, 232, 252),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnCharger.Click += BtnCharger_Click;
@@ -212,7 +222,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 546),
                 Size = new Size(198, 20),
                 Font = new Font("Arial", 9, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Taille plateau (en jeu):"
             };
 
@@ -242,13 +252,14 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 32),
                 Text = "Appliquer taille",
                 Font = new Font("Arial", 9, FontStyle.Bold),
-                BackColor = Color.FromArgb(85, 85, 110),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(186, 225, 248),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnAppliquerTaille.Click += BtnAppliquerTaille_Click;
 
             _infoPanel.Controls.Add(_labelTour);
+            _infoPanel.Controls.Add(_labelMatricule);
             _infoPanel.Controls.Add(_labelScoreJ1);
             _infoPanel.Controls.Add(_labelScoreJ2);
             _infoPanel.Controls.Add(_labelModeAction);
@@ -281,13 +292,13 @@ namespace JeuDePoints.Forms
             _setupPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(238, 232, 220)
+                BackColor = Color.FromArgb(239, 249, 255)
             };
 
             var card = new Panel
             {
                 Size = new Size(430, 220),
-                BackColor = Color.FromArgb(255, 248, 236),
+                BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -303,7 +314,7 @@ namespace JeuDePoints.Forms
                 Font = new Font("Arial", 16, FontStyle.Bold),
                 AutoSize = true,
                 Location = new Point(20, 18),
-                ForeColor = Color.FromArgb(70, 50, 30)
+                ForeColor = Color.FromArgb(18, 73, 120)
             };
 
             var lblLongueur = new Label
@@ -347,7 +358,7 @@ namespace JeuDePoints.Forms
                 Text = "Valider et lancer",
                 Location = new Point(24, 162),
                 Size = new Size(256, 36),
-                BackColor = Color.FromArgb(80, 120, 75),
+                BackColor = Color.FromArgb(186, 225, 248),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Arial", 10, FontStyle.Bold)
