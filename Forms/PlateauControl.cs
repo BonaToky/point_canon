@@ -22,6 +22,8 @@ namespace JeuDePoints.Forms
         private PointF _projectileStart;
         private PointF _projectileEnd;
         private float _projectileProgress;
+        private bool _projectileArc;
+        private float _projectileArcHeight;
         private Color _projectileColor;
         private Action? _shotCompleted;
 
@@ -39,7 +41,7 @@ namespace JeuDePoints.Forms
             _shotTimer = new System.Windows.Forms.Timer();
             _shotTimer.Interval = 1000 / 30;
             _shotTimer.Tick += ShotTimer_Tick;
-            BackColor = Color.FromArgb(230, 220, 200);
+            BackColor = Color.FromArgb(235, 247, 255);
         }
 
         public void SetJeu(JeuService jeu)
@@ -81,7 +83,28 @@ namespace JeuDePoints.Forms
             return _jeu.JoueurActuel.Id == 1 ? _canonRowJ1 : _canonRowJ2;
         }
 
-        public void PlayShotAnimation(int tireurId, Position cible, Action? onComplete = null)
+        public void SetActiveCannonRow(int row)
+        {
+            if (_jeu == null)
+            {
+                return;
+            }
+
+            int maxRow = Math.Max(0, _jeu.Plateau.Largeur - 1);
+            int rowValide = Math.Clamp(row, 0, maxRow);
+            if (_jeu.JoueurActuel.Id == 1)
+            {
+                _canonRowJ1 = rowValide;
+            }
+            else
+            {
+                _canonRowJ2 = rowValide;
+            }
+
+            Invalidate();
+        }
+
+        public void PlayShotAnimation(int tireurId, Position cible, Action? onComplete = null, bool trajectoireMortier = false)
         {
             if (_jeu == null)
             {
@@ -109,6 +132,10 @@ namespace JeuDePoints.Forms
             _projectileEnd = new PointF(startX + cible.X * cellSize, startYShot);
             _projectilePosition = _projectileStart;
             _projectileProgress = 0f;
+            _projectileArc = trajectoireMortier;
+            _projectileArcHeight = trajectoireMortier
+                ? Math.Max(24f, Math.Abs(_projectileEnd.X - _projectileStart.X) * 0.22f)
+                : 0f;
             _projectileColor = tireurId == 1 ? Color.Red : Color.Blue;
             _shotCompleted = onComplete;
 
@@ -134,7 +161,17 @@ namespace JeuDePoints.Forms
             float t = _projectileProgress;
             float eased = 1f - (1f - t) * (1f - t);
             float x = _projectileStart.X + (_projectileEnd.X - _projectileStart.X) * eased;
-            float y = _projectileStart.Y + (_projectileEnd.Y - _projectileStart.Y) * eased;
+            float y;
+            if (_projectileArc)
+            {
+                float baseY = _projectileStart.Y + (_projectileEnd.Y - _projectileStart.Y) * eased;
+                float arcOffset = 4f * _projectileArcHeight * eased * (1f - eased);
+                y = baseY - arcOffset;
+            }
+            else
+            {
+                y = _projectileStart.Y + (_projectileEnd.Y - _projectileStart.Y) * eased;
+            }
             _projectilePosition = new PointF(x, y);
             Invalidate();
         }
@@ -248,12 +285,12 @@ namespace JeuDePoints.Forms
                 return;
             }
 
-            using (var brush = new SolidBrush(Color.FromArgb(246, 223, 183)))
+            using (var brush = new SolidBrush(Color.White))
             {
                 g.FillRectangle(brush, startX, startY, boardWidth, boardHeight);
             }
 
-            using (var pen = new Pen(Color.FromArgb(110, 85, 55), 1.6f))
+            using (var pen = new Pen(Color.FromArgb(150, 205, 240), 1.6f))
             {
                 for (int x = 0; x < cols; x++)
                 {
@@ -309,7 +346,7 @@ namespace JeuDePoints.Forms
 
                     if (_tempHighlights.Any(p => p.X == x && p.Y == y))
                     {
-                        using (var b = new SolidBrush(Color.FromArgb(180, 255, 240, 120)))
+                        using (var b = new SolidBrush(Color.FromArgb(180, 186, 225, 248)))
                         {
                             g.FillEllipse(b, cx - radius - 4, cy - radius - 4, (radius + 4) * 2, (radius + 4) * 2);
                         }
@@ -317,14 +354,18 @@ namespace JeuDePoints.Forms
 
                     if (cellule != null && !cellule.EstVide)
                     {
-                        using (var b = new SolidBrush(cellule.Proprietaire.Couleur))
+                        var proprietaire = cellule.Proprietaire;
+                        if (proprietaire != null)
                         {
-                            g.FillEllipse(b, cx - radius, cy - radius, radius * 2, radius * 2);
+                            using (var b = new SolidBrush(proprietaire.Couleur))
+                            {
+                                g.FillEllipse(b, cx - radius, cy - radius, radius * 2, radius * 2);
+                            }
                         }
                     }
                     else
                     {
-                        using (var b = new SolidBrush(Color.FromArgb(130, 95, 65)))
+                        using (var b = new SolidBrush(Color.FromArgb(120, 150, 180)))
                         {
                             g.FillEllipse(b, cx - 2, cy - 2, 4, 4);
                         }
@@ -332,7 +373,7 @@ namespace JeuDePoints.Forms
 
                     if (cellule != null && cellule.EstProtegee)
                     {
-                        using (var p = new Pen(Color.Gold, 3))
+                        using (var p = new Pen(Color.DeepSkyBlue, 3))
                         {
                             g.DrawEllipse(p, cx - radius - 2, cy - radius - 2, (radius + 2) * 2, (radius + 2) * 2);
                         }

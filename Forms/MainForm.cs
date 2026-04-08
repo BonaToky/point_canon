@@ -21,6 +21,7 @@ namespace JeuDePoints.Forms
         private JeuService? _jeu;
         private PlateauControl _plateauControl = null!;
         private Label _labelTour = null!;
+        private Label _labelMatricule = null!;
         private Label _labelScoreJ1 = null!;
         private Label _labelScoreJ2 = null!;
         private Label _labelModeAction = null!;
@@ -29,6 +30,13 @@ namespace JeuDePoints.Forms
         private Button _btnCharger = null!;
         private Button _btnModePlacer = null!;
         private Button _btnModeTirer = null!;
+        private Label _labelPuissance = null!;
+        private Label _labelPorteeChoisie = null!;
+        private NumericUpDown _numPuissanceCanon = null!;
+        private Label _labelTaillePlateau = null!;
+        private NumericUpDown _numLongueurJeu = null!;
+        private NumericUpDown _numLargeurJeu = null!;
+        private Button _btnAppliquerTaille = null!;
         private SauvegardeService? _sauvegardeService;
         private Panel _infoPanel = null!;
         private Panel _setupPanel = null!;
@@ -48,7 +56,7 @@ namespace JeuDePoints.Forms
             this.Text = "Jeu de Points - Alignez 5 !";
             this.Size = new Size(800, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = Color.FromArgb(240, 240, 240);
+            this.BackColor = Color.White;
             this.KeyPreview = true;
             this.KeyDown += MainForm_KeyDown;
 
@@ -57,17 +65,26 @@ namespace JeuDePoints.Forms
             {
                 Dock = DockStyle.Left,
                 Width = 230,
-                BackColor = Color.FromArgb(50, 50, 50)
+                BackColor = Color.FromArgb(201, 236, 255)
             };
 
             // Label du tour
             _labelTour = new Label
             {
                 Location = new Point(16, 20),
-                Size = new Size(198, 90),
+                Size = new Size(198, 54),
                 Font = new Font("Arial", 13, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Tour du Joueur Rouge (R)"
+            };
+
+            _labelMatricule = new Label
+            {
+                Location = new Point(16, 76),
+                Size = new Size(198, 38),
+                Font = new Font("Arial", 20, FontStyle.Bold),
+                ForeColor = Color.FromArgb(20, 120, 190),
+                Text = "ETU3321"
             };
 
             // Labels des scores
@@ -76,7 +93,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 140),
                 Size = new Size(198, 30),
                 Font = new Font("Arial", 12),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Rouge: 0"
             };
 
@@ -85,7 +102,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 174),
                 Size = new Size(198, 30),
                 Font = new Font("Arial", 12),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Bleu: 0"
             };
 
@@ -94,7 +111,7 @@ namespace JeuDePoints.Forms
                 Location = new Point(16, 214),
                 Size = new Size(198, 44),
                 Font = new Font("Arial", 10, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(18, 73, 120),
                 Text = "Action: Placer"
             };
 
@@ -104,8 +121,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 34),
                 Text = "Placer un point",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(95, 95, 95),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(232, 247, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnModePlacer.Click += (s, e) =>
@@ -120,8 +137,8 @@ namespace JeuDePoints.Forms
                 Size = new Size(198, 34),
                 Text = "Tirer au canon",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(95, 95, 95),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(232, 247, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnModeTirer.Click += (s, e) =>
@@ -130,52 +147,135 @@ namespace JeuDePoints.Forms
                 MettreAJourBoutonsAction();
             };
 
+            _labelPuissance = new Label
+            {
+                Location = new Point(16, 354),
+                Size = new Size(198, 22),
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(18, 73, 120),
+                Text = "Portée canon (Ctrl+1..9):"
+            };
+
+            _numPuissanceCanon = new NumericUpDown
+            {
+                Location = new Point(16, 378),
+                Size = new Size(198, 28),
+                Minimum = 1,
+                Maximum = 9,
+                Value = 9,
+                Font = new Font("Arial", 11, FontStyle.Bold),
+                BackColor = Color.FromArgb(230, 230, 230),
+                ForeColor = Color.Black
+            };
+            _numPuissanceCanon.Visible = false;
+            _numPuissanceCanon.TabStop = false;
+            _numPuissanceCanon.ValueChanged += (s, e) => MettreAJourLabelPorteeChoisie();
+
+            _labelPorteeChoisie = new Label
+            {
+                Location = new Point(16, 380),
+                Size = new Size(198, 22),
+                Font = new Font("Arial", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(20, 120, 190),
+                Text = "Portée choisie: 9"
+            };
+
             // Bouton nouvelle partie
             _btnNouvellePartie = new Button
             {
-                Location = new Point(16, 354),
+                Location = new Point(16, 412),
                 Size = new Size(198, 40),
                 Text = "Nouvelle Partie",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(100, 100, 100),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(222, 243, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnNouvellePartie.Click += BtnNouvellePartie_Click;
 
             _btnSauvegarder = new Button
             {
-                Location = new Point(16, 402),
+                Location = new Point(16, 460),
                 Size = new Size(198, 36),
                 Text = "Sauvegarder partie",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(70, 110, 140),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(209, 237, 255),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnSauvegarder.Click += BtnSauvegarder_Click;
 
             _btnCharger = new Button
             {
-                Location = new Point(16, 444),
+                Location = new Point(16, 502),
                 Size = new Size(198, 36),
                 Text = "Charger partie",
                 Font = new Font("Arial", 10),
-                BackColor = Color.FromArgb(120, 90, 70),
-                ForeColor = Color.White,
+                BackColor = Color.FromArgb(198, 232, 252),
+                ForeColor = Color.FromArgb(18, 73, 120),
                 FlatStyle = FlatStyle.Flat
             };
             _btnCharger.Click += BtnCharger_Click;
 
+            _labelTaillePlateau = new Label
+            {
+                Location = new Point(16, 546),
+                Size = new Size(198, 20),
+                Font = new Font("Arial", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(18, 73, 120),
+                Text = "Taille plateau (en jeu):"
+            };
+
+            _numLongueurJeu = new NumericUpDown
+            {
+                Location = new Point(16, 570),
+                Size = new Size(92, 26),
+                Minimum = 5,
+                Maximum = 30,
+                Value = 10,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            _numLargeurJeu = new NumericUpDown
+            {
+                Location = new Point(122, 570),
+                Size = new Size(92, 26),
+                Minimum = 5,
+                Maximum = 30,
+                Value = 10,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            _btnAppliquerTaille = new Button
+            {
+                Location = new Point(16, 602),
+                Size = new Size(198, 32),
+                Text = "Appliquer taille",
+                Font = new Font("Arial", 9, FontStyle.Bold),
+                BackColor = Color.FromArgb(186, 225, 248),
+                ForeColor = Color.FromArgb(18, 73, 120),
+                FlatStyle = FlatStyle.Flat
+            };
+            _btnAppliquerTaille.Click += BtnAppliquerTaille_Click;
+
             _infoPanel.Controls.Add(_labelTour);
+            _infoPanel.Controls.Add(_labelMatricule);
             _infoPanel.Controls.Add(_labelScoreJ1);
             _infoPanel.Controls.Add(_labelScoreJ2);
             _infoPanel.Controls.Add(_labelModeAction);
             _infoPanel.Controls.Add(_btnModePlacer);
             _infoPanel.Controls.Add(_btnModeTirer);
+            _infoPanel.Controls.Add(_labelPuissance);
+            _infoPanel.Controls.Add(_labelPorteeChoisie);
             _infoPanel.Controls.Add(_btnNouvellePartie);
             _infoPanel.Controls.Add(_btnSauvegarder);
             _infoPanel.Controls.Add(_btnCharger);
+            _infoPanel.Controls.Add(_labelTaillePlateau);
+            _infoPanel.Controls.Add(_numLongueurJeu);
+            _infoPanel.Controls.Add(_numLargeurJeu);
+            _infoPanel.Controls.Add(_btnAppliquerTaille);
+
+            MettreAJourLabelPorteeChoisie();
 
             // Panel du plateau (custom control with intersections)
             _plateauControl = new PlateauControl
@@ -192,13 +292,13 @@ namespace JeuDePoints.Forms
             _setupPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(238, 232, 220)
+                BackColor = Color.FromArgb(239, 249, 255)
             };
 
             var card = new Panel
             {
                 Size = new Size(430, 220),
-                BackColor = Color.FromArgb(255, 248, 236),
+                BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -214,7 +314,7 @@ namespace JeuDePoints.Forms
                 Font = new Font("Arial", 16, FontStyle.Bold),
                 AutoSize = true,
                 Location = new Point(20, 18),
-                ForeColor = Color.FromArgb(70, 50, 30)
+                ForeColor = Color.FromArgb(18, 73, 120)
             };
 
             var lblLongueur = new Label
@@ -258,7 +358,7 @@ namespace JeuDePoints.Forms
                 Text = "Valider et lancer",
                 Location = new Point(24, 162),
                 Size = new Size(256, 36),
-                BackColor = Color.FromArgb(80, 120, 75),
+                BackColor = Color.FromArgb(186, 225, 248),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Arial", 10, FontStyle.Bold)
@@ -305,8 +405,29 @@ namespace JeuDePoints.Forms
             _setupPanel.Visible = false;
             _infoPanel.Visible = true;
             _plateauControl.Visible = true;
+            _numLongueurJeu.Value = longueur;
+            _numLargeurJeu.Value = largeur;
             CreerPlateauGraphique();
             MettreAJourAffichage();
+        }
+
+        private void BtnAppliquerTaille_Click(object? sender, EventArgs e)
+        {
+            int longueur = (int)_numLongueurJeu.Value;
+            int largeur = (int)_numLargeurJeu.Value;
+
+            if (MessageBox.Show(
+                $"Appliquer un plateau {longueur}x{largeur} et recommencer la partie ?",
+                "Changer la taille",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) != DialogResult.Yes)
+            {
+                return;
+            }
+
+            _modeAction = ModeAction.PlacerPoint;
+            _tirEnCours = false;
+            InitialiserJeu(longueur, largeur);
         }
 
         private void BtnValiderConfiguration_Click(object? sender, EventArgs e)
@@ -331,13 +452,26 @@ namespace JeuDePoints.Forms
 
             if (_modeAction == ModeAction.TirerCanon)
             {
-                var resultatTir = _jeu.TirerCanonAvecResultat(position);
+                int puissance = ObtenirPuissanceCanon();
+                _plateauControl.SetActiveCannonRow(position.Y);
+                int tireurId = _jeu.JoueurActuel.Id;
+                var resultatTir = _jeu.TirerCanonAvecResultat(position, puissance);
                 if (resultatTir == null)
                 {
-                    _jeu.PasserTour();
-                    _modeAction = ModeAction.PlacerPoint;
-                    MettreAJourAffichage();
-                    MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Position destinationRatee = _jeu.CalculerDestinationCanonVers(position, puissance);
+                    _tirEnCours = true;
+                    _plateauControl.PlayShotAnimation(tireurId, destinationRatee, () =>
+                    {
+                        if (_jeu != null)
+                        {
+                            _jeu.PasserTour();
+                        }
+
+                        _modeAction = ModeAction.PlacerPoint;
+                        _tirEnCours = false;
+                        MettreAJourAffichage();
+                        MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }, trajectoireMortier: true);
                     return;
                 }
 
@@ -351,7 +485,7 @@ namespace JeuDePoints.Forms
                     _modeAction = ModeAction.PlacerPoint;
                     _tirEnCours = false;
                     MettreAJourAffichage();
-                });
+                }, trajectoireMortier: true);
                 return;
             }
 
@@ -386,63 +520,92 @@ namespace JeuDePoints.Forms
             }
         }
 
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (TryHandleCanonKeyboardShortcut(keyData))
+            {
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void MainForm_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (TryHandleCanonKeyboardShortcut(e.KeyData))
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+        }
+
+        private bool TryHandleCanonKeyboardShortcut(Keys keyData)
         {
             if (_jeu == null || !_plateauControl.Visible || _tirEnCours)
             {
-                return;
+                return false;
             }
 
-            if (e.KeyCode == Keys.W)
+            if ((keyData & Keys.Control) == Keys.Control
+                && TryGetPuissanceFromKey(keyData & Keys.KeyCode, out int puissanceSelectionnee))
             {
+                DefinirPuissanceCanon(puissanceSelectionnee);
                 _modeAction = ModeAction.TirerCanon;
-                _plateauControl.MoveActiveCannon(-1);
                 MettreAJourBoutonsAction();
-                e.Handled = true;
-                e.SuppressKeyPress = true;
-                return;
-            }
 
-            if (e.KeyCode == Keys.S)
-            {
-                _modeAction = ModeAction.TirerCanon;
-                _plateauControl.MoveActiveCannon(1);
-                MettreAJourBoutonsAction();
-                e.Handled = true;
-                e.SuppressKeyPress = true;
-                return;
-            }
-
-            if (e.KeyCode == Keys.Space)
-            {
-                _modeAction = ModeAction.TirerCanon;
                 int ligne = _plateauControl.GetActiveCannonRow();
-                var resultatTir = _jeu.TirerCanonSurLigneAvecResultat(ligne);
+                int tireurId = _jeu.JoueurActuel.Id;
+                var resultatTir = _jeu.TirerCanonSurLigneAvecResultat(ligne, puissanceSelectionnee);
                 if (resultatTir == null)
                 {
-                    _jeu.PasserTour();
-                    _modeAction = ModeAction.PlacerPoint;
-                    MettreAJourAffichage();
-                    MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    e.Handled = true;
-                    e.SuppressKeyPress = true;
-                    return;
+                    Position destinationRatee = _jeu.CalculerDestinationCanonSurLigne(ligne, puissanceSelectionnee);
+                    _tirEnCours = true;
+                    _plateauControl.PlayShotAnimation(tireurId, destinationRatee, () =>
+                    {
+                        if (_jeu != null)
+                        {
+                            _jeu.PasserTour();
+                        }
+
+                        _modeAction = ModeAction.PlacerPoint;
+                        _tirEnCours = false;
+                        MettreAJourAffichage();
+                        MessageBox.Show("Tir manqué. Le tour passe au joueur suivant.", "Tir", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }, trajectoireMortier: true);
+                }
+                else
+                {
+                    _tirEnCours = true;
+                    _plateauControl.PlayShotAnimation(resultatTir.TireurId, resultatTir.Cible, () =>
+                    {
+                        if (_jeu != null)
+                        {
+                            _jeu.FinaliserTirCanon(resultatTir);
+                        }
+                        _modeAction = ModeAction.PlacerPoint;
+                        _tirEnCours = false;
+                        MettreAJourAffichage();
+                    }, trajectoireMortier: true);
                 }
 
-                _tirEnCours = true;
-                _plateauControl.PlayShotAnimation(resultatTir.TireurId, resultatTir.Cible, () =>
-                {
-                    if (_jeu != null)
-                    {
-                        _jeu.FinaliserTirCanon(resultatTir);
-                    }
-                    _modeAction = ModeAction.PlacerPoint;
-                    _tirEnCours = false;
-                    MettreAJourAffichage();
-                });
-                e.Handled = true;
-                e.SuppressKeyPress = true;
+                return true;
             }
+
+            Keys key = keyData & Keys.KeyCode;
+            if (key == Keys.Up)
+            {
+                _plateauControl.MoveActiveCannon(-1);
+                return true;
+            }
+
+            if (key == Keys.Down)
+            {
+                _plateauControl.MoveActiveCannon(1);
+                return true;
+            }
+
+            return false;
         }
 
         private void MettreAJourAffichage()
@@ -475,6 +638,51 @@ namespace JeuDePoints.Forms
             _labelModeAction.Text = placerActif
                 ? "Action: Placer un point"
                 : "Action: Tirer au canon";
+        }
+
+        private int ObtenirPuissanceCanon()
+        {
+            return (int)_numPuissanceCanon.Value;
+        }
+
+        private void DefinirPuissanceCanon(int puissance)
+        {
+            if (puissance < _numPuissanceCanon.Minimum || puissance > _numPuissanceCanon.Maximum)
+            {
+                return;
+            }
+
+            _numPuissanceCanon.Value = puissance;
+            MettreAJourLabelPorteeChoisie();
+        }
+
+        private void MettreAJourLabelPorteeChoisie()
+        {
+            if (_labelPorteeChoisie == null)
+            {
+                return;
+            }
+
+            _labelPorteeChoisie.Text = $"Portée choisie: {ObtenirPuissanceCanon()}";
+        }
+
+        private static bool TryGetPuissanceFromKey(Keys key, out int puissance)
+        {
+            puissance = 0;
+
+            if (key >= Keys.D1 && key <= Keys.D9)
+            {
+                puissance = key - Keys.D0;
+                return true;
+            }
+
+            if (key >= Keys.NumPad1 && key <= Keys.NumPad9)
+            {
+                puissance = key - Keys.NumPad0;
+                return true;
+            }
+
+            return false;
         }
 
         private void BtnNouvellePartie_Click(object? sender, EventArgs e)
@@ -743,6 +951,36 @@ namespace JeuDePoints.Forms
                     _jeu.GetLignesTracees().Add(new LigneTracee(joueur, positions, direction));
                 }
             }
+
+            var casesPerdues = new Dictionary<int, List<Position>>();
+            if (root.TryGetProperty("casesPerduesParJoueur", out var casesPerduesJson)
+                && casesPerduesJson.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in casesPerduesJson.EnumerateObject())
+                {
+                    if (!int.TryParse(prop.Name, out int joueurId))
+                    {
+                        continue;
+                    }
+
+                    var positions = new List<Position>();
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var posJson in prop.Value.EnumerateArray())
+                        {
+                            if (posJson.TryGetProperty("x", out var xEl)
+                                && posJson.TryGetProperty("y", out var yEl))
+                            {
+                                positions.Add(new Position(xEl.GetInt32(), yEl.GetInt32()));
+                            }
+                        }
+                    }
+
+                    casesPerdues[joueurId] = positions;
+                }
+            }
+
+            _jeu.DefinirCasesPerduesParJoueur(casesPerdues);
 
             joueur1.Score = sauvegarde.Joueur1Score;
             joueur2.Score = sauvegarde.Joueur2Score;

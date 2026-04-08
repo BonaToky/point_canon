@@ -368,6 +368,7 @@ namespace JeuDePoints.Services
         {
             var plateau = jeuService.Plateau;
             var lignesTracees = jeuService.GetLignesTracees();
+            var casesPerdues = jeuService.GetCasesPerduesParJoueur();
 
             var etat = new
             {
@@ -383,7 +384,10 @@ namespace JeuDePoints.Services
                     joueurNom = l.Joueur.Nom,
                     direction = l.Direction,
                     positions = l.Positions.Select(p => new { x = p.X, y = p.Y }).ToList()
-                }).ToList()
+                }).ToList(),
+                casesPerduesParJoueur = casesPerdues.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value.Select(p => new { x = p.X, y = p.Y }).ToList())
             };
 
             return JsonSerializer.Serialize(etat, new JsonSerializerOptions { WriteIndented = true });

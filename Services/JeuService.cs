@@ -24,6 +24,7 @@ namespace JeuDePoints.Services
         private List<Joueur> _joueurs;
         private int _tourActuel;
         private List<LigneTracee> _lignesTracees;
+        private Dictionary<int, HashSet<Position>> _casesPerduesParJoueur;
 
         public JeuService(int longueur, int largeur, string nomJoueur1, string nomJoueur2)
         {
@@ -35,6 +36,12 @@ namespace JeuDePoints.Services
             {
                 new Joueur(1, nomJoueur1, 'R', System.Drawing.Color.Red),
                 new Joueur(2, nomJoueur2, 'B', System.Drawing.Color.Blue)
+            };
+
+            _casesPerduesParJoueur = new Dictionary<int, HashSet<Position>>
+            {
+                { _joueurs[0].Id, new HashSet<Position>() },
+                { _joueurs[1].Id, new HashSet<Position>() }
             };
             
             _tourActuel = 0;
@@ -64,6 +71,7 @@ namespace JeuDePoints.Services
             // Vérifier les lignes créées
             var nouvellesLignes = _detection.VerifierNouvellesLignes(position, JoueurActuel);
             nouvellesLignes = nouvellesLignes
+                .Where(ligne => !_lignesTracees.Any(existante => LignesIdentiques(existante, ligne)))
                 .Where(ligne => !ToucheOuCroiseLigneAdverse(ligne))
                 .ToList();
 
@@ -150,26 +158,102 @@ namespace JeuDePoints.Services
                 && b.Y <= Math.Max(a.Y, c.Y) && b.Y >= Math.Min(a.Y, c.Y);
         }
 
-        public bool TirerCanon(Position position)
+        private static bool LignesIdentiques(LigneTracee a, LigneTracee b)
         {
-            var tir = TirerCanonAvecResultat(position);
+            if (a.Joueur.Id != b.Joueur.Id || a.Positions.Count != b.Positions.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < a.Positions.Count; i++)
+            {
+                if (a.Positions[i].X != b.Positions[i].X || a.Positions[i].Y != b.Positions[i].Y)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private double CalculerPorteeCanonReelle(int puissance)
+        {
+            int puissanceNormalisee = Math.Clamp(puissance, 1, 9);
+            int distanceMax = Math.Max(0, _plateau.Longueur - 1);
+            return ((double)(puissanceNormalisee - 1) / 8.0) * distanceMax;
+        }
+
+        private int CalculerPorteeCanon(int puissance)
+        {
+            return (int)Math.Floor(CalculerPorteeCanonReelle(puissance));
+        }
+
+        public Position CalculerDestinationCanonVers(Position positionVisee, int puissance = 9)
+        {
+            int tireurId = JoueurActuel.Id;
+            int ligne = Math.Clamp(positionVisee.Y, 0, _plateau.Largeur - 1);
+            int portee = CalculerPorteeCanon(puissance);
+
+            int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
+            int limiteIncluse = tireurId == 1
+                ? Math.Min(_plateau.Longueur - 1, startX + portee)
+                : Math.Max(0, startX - portee);
+
+            int xDestination = tireurId == 1
+                ? Math.Clamp(positionVisee.X, startX, limiteIncluse)
+                : Math.Clamp(positionVisee.X, limiteIncluse, startX);
+
+            return new Position(xDestination, ligne);
+        }
+
+        public Position CalculerDestinationCanonSurLigne(int ligne, int puissance = 9)
+        {
+            int tireurId = JoueurActuel.Id;
+            int ligneValide = Math.Clamp(ligne, 0, _plateau.Largeur - 1);
+            int portee = CalculerPorteeCanon(puissance);
+
+            int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
+            int limiteIncluse = tireurId == 1
+                ? Math.Min(_plateau.Longueur - 1, startX + portee)
+                : Math.Max(0, startX - portee);
+
+            return new Position(limiteIncluse, ligneValide);
+        }
+
+        public bool TirerCanon(Position position, int puissance = 9)
+        {
+            var tir = TirerCanonAvecResultat(position, puissance);
             if (tir == null)
                 return false;
 
             return FinaliserTirCanon(tir);
         }
 
-        public TirCanonResultat? TirerCanonAvecResultat(Position position)
+        public TirCanonResultat? TirerCanonAvecResultat(Position position, int puissance = 9)
         {
             int tireurId = JoueurActuel.Id;
             if (!_plateau.EstDansPlateau(position))
                 return null;
 
+            double porteeReelle = CalculerPorteeCanonReelle(puissance);
+            int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
+            int distance = Math.Abs(position.X - startX);
+            if (distance > porteeReelle)
+                return null;
+
             var cellule = _plateau.GetCellule(position);
-            if (cellule == null || cellule.EstVide)
+            if (cellule == null)
+                return null;
+
+            // Les points appartenant a une ligne alignee/protegee sont intouchables.
+            if (cellule.EstProtegee)
                 return null;
 
             if (cellule.Proprietaire == JoueurActuel)
+                return null;
+
+            bool caseRecuperable = EstCaseRecuperablePourJoueur(JoueurActuel.Id, position);
+            if (cellule.EstVide && !caseRecuperable)
                 return null;
 
             return new TirCanonResultat(tireurId, position);
@@ -180,8 +264,46 @@ namespace JeuDePoints.Services
             if (tir.TireurId != JoueurActuel.Id)
                 return false;
 
-            if (!_plateau.TirerSurPointAdverse(tir.Cible, JoueurActuel))
+            var celluleCible = _plateau.GetCellule(tir.Cible);
+            if (celluleCible == null)
                 return false;
+
+            if (celluleCible.EstProtegee)
+                return false;
+
+            if (celluleCible.Proprietaire == JoueurActuel)
+                return false;
+
+            bool caseRecuperable = EstCaseRecuperablePourJoueur(JoueurActuel.Id, tir.Cible);
+            var proprietaireAvant = celluleCible.Proprietaire;
+
+            if (proprietaireAvant == null)
+            {
+                if (!caseRecuperable)
+                    return false;
+
+                celluleCible.Proprietaire = JoueurActuel;
+            }
+            else
+            {
+                if (caseRecuperable)
+                {
+                    // Reprise de case: un point adverse sur la case perdue devient le point du tireur.
+                    celluleCible.Proprietaire = JoueurActuel;
+                }
+                else
+                {
+                    // Tir standard: suppression du point adverse et mémorisation de la case perdue.
+                    celluleCible.Proprietaire = null;
+                    MemoriserCasePerdue(proprietaireAvant.Id, tir.Cible);
+                }
+            }
+
+            celluleCible.EstProtegee = false;
+            if (caseRecuperable)
+            {
+                _casesPerduesParJoueur[JoueurActuel.Id].Remove(tir.Cible);
+            }
 
             var lignesSupprimees = _lignesTracees
                 .Where(l => l.Positions.Any(p => p.X == tir.Cible.X && p.Y == tir.Cible.Y))
@@ -203,40 +325,66 @@ namespace JeuDePoints.Services
             return true;
         }
 
-        public bool TirerCanonSurLigne(int ligne)
+        public bool TirerCanonSurLigne(int ligne, int puissance = 9)
         {
-            var tir = TirerCanonSurLigneAvecResultat(ligne);
+            var tir = TirerCanonSurLigneAvecResultat(ligne, puissance);
             if (tir == null)
                 return false;
 
             return FinaliserTirCanon(tir);
         }
 
-        public TirCanonResultat? TirerCanonSurLigneAvecResultat(int ligne)
+        public TirCanonResultat? TirerCanonSurLigneAvecResultat(int ligne, int puissance = 9)
         {
             if (ligne < 0 || ligne >= _plateau.Largeur)
                 return null;
 
             int tireurId = JoueurActuel.Id;
+            int portee = CalculerPorteeCanon(puissance);
 
             int startX = tireurId == 1 ? 0 : _plateau.Longueur - 1;
-            int endX = tireurId == 1 ? _plateau.Longueur : -1;
-            int step = tireurId == 1 ? 1 : -1;
+            int limiteIncluse = tireurId == 1
+                ? Math.Min(_plateau.Longueur - 1, startX + portee)
+                : Math.Max(0, startX - portee);
 
-            for (int x = startX; x != endX; x += step)
+            // Logique mortier: impact uniquement sur la case de portée, sans collision intermédiaire.
+            var impact = new Position(limiteIncluse, ligne);
+            var cellule = _plateau.GetCellule(impact);
+            if (cellule == null)
+                return null;
+
+            if (cellule.EstProtegee)
+                return null;
+
+            if (cellule.Proprietaire == JoueurActuel)
+                return null;
+
+            bool caseRecuperable = EstCaseRecuperablePourJoueur(JoueurActuel.Id, impact);
+            if (cellule.EstVide && !caseRecuperable)
+                return null;
+
+            return new TirCanonResultat(tireurId, impact);
+        }
+
+        private bool EstCaseRecuperablePourJoueur(int joueurId, Position position)
+        {
+            if (!_casesPerduesParJoueur.TryGetValue(joueurId, out var casesPerdues))
             {
-                var pos = new Position(x, ligne);
-                var cellule = _plateau.GetCellule(pos);
-                if (cellule == null || cellule.EstVide)
-                    continue;
-
-                if (cellule.Proprietaire == JoueurActuel)
-                    continue;
-
-                return new TirCanonResultat(tireurId, pos);
+                return false;
             }
 
-            return null;
+            return casesPerdues.Contains(position);
+        }
+
+        private void MemoriserCasePerdue(int joueurId, Position position)
+        {
+            if (!_casesPerduesParJoueur.TryGetValue(joueurId, out var casesPerdues))
+            {
+                casesPerdues = new HashSet<Position>();
+                _casesPerduesParJoueur[joueurId] = casesPerdues;
+            }
+
+            casesPerdues.Add(new Position(position.X, position.Y));
         }
 
         private void ChangerTour()
@@ -282,10 +430,44 @@ namespace JeuDePoints.Services
             return _lignesTracees;
         }
 
+        public Dictionary<int, List<Position>> GetCasesPerduesParJoueur()
+        {
+            return _casesPerduesParJoueur.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.Select(p => new Position(p.X, p.Y)).ToList());
+        }
+
+        public void DefinirCasesPerduesParJoueur(Dictionary<int, List<Position>> donnees)
+        {
+            _casesPerduesParJoueur.Clear();
+
+            foreach (var joueur in _joueurs)
+            {
+                _casesPerduesParJoueur[joueur.Id] = new HashSet<Position>();
+            }
+
+            foreach (var entree in donnees)
+            {
+                if (!_casesPerduesParJoueur.ContainsKey(entree.Key))
+                {
+                    continue;
+                }
+
+                foreach (var position in entree.Value)
+                {
+                    _casesPerduesParJoueur[entree.Key].Add(new Position(position.X, position.Y));
+                }
+            }
+        }
+
         public void Reinitialiser()
         {
             _plateau.Reinitialiser();
             _lignesTracees.Clear();
+            foreach (var casesPerdues in _casesPerduesParJoueur.Values)
+            {
+                casesPerdues.Clear();
+            }
             _tourActuel = 0;
         }
     }

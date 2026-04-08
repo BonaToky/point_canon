@@ -46,14 +46,15 @@ namespace JeuDePoints.Services
             var pointsAlignes = new List<Position> { start };
 
             // Chercher dans la direction positive
-            for (int i = 1; i <= 4; i++)
+            int i = 1;
+            while (true)
             {
                 Position pos = new Position(start.X + (dx * i), start.Y + (dy * i));
                 if (!_plateau.EstDansPlateau(pos))
                     break;
                     
                 var proprio = _plateau.GetProprietaire(pos);
-                if (proprio == joueur && !_plateau.GetCellule(pos).EstProtegee)
+                if (proprio == joueur)
                 {
                     pointsAlignes.Add(pos);
                 }
@@ -61,17 +62,20 @@ namespace JeuDePoints.Services
                 {
                     break; // Coupure par un point adverse ou case vide
                 }
+
+                i++;
             }
 
             // Chercher dans la direction négative
-            for (int i = 1; i <= 4; i++)
+            i = 1;
+            while (true)
             {
                 Position pos = new Position(start.X - (dx * i), start.Y - (dy * i));
                 if (!_plateau.EstDansPlateau(pos))
                     break;
                     
                 var proprio = _plateau.GetProprietaire(pos);
-                if (proprio == joueur && !_plateau.GetCellule(pos).EstProtegee)
+                if (proprio == joueur)
                 {
                     pointsAlignes.Insert(0, pos);
                 }
@@ -79,17 +83,14 @@ namespace JeuDePoints.Services
                 {
                     break; // Coupure par un point adverse ou case vide
                 }
+
+                i++;
             }
 
-            // Si on a au moins 5 points consécutifs, on peut avoir plusieurs lignes
-            if (pointsAlignes.Count >= 5)
+            // Règle "exactement 5": une chaîne de 6+ ne compte pas comme nouvel alignement.
+            if (pointsAlignes.Count == 5)
             {
-                // Extraire toutes les lignes de 5 points consécutifs
-                for (int i = 0; i <= pointsAlignes.Count - 5; i++)
-                {
-                    var ligne = pointsAlignes.GetRange(i, 5);
-                    lignes.Add(new LigneTracee(joueur, ligne, nomDirection));
-                }
+                lignes.Add(new LigneTracee(joueur, pointsAlignes, nomDirection));
             }
 
             return lignes;
